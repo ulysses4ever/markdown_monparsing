@@ -2,7 +2,7 @@
 
 This repository contains materials connected with monadic parsers in Haskell and developing source code of parser for markdown documents.
 
-![Example](sandbox/md_to_html_usage/md-html.png)
+![Example](https://raw.githubusercontent.com/geo2a/markdown_monparsing/experimental/md-html.png)
 
 # Tests reports: 
 
