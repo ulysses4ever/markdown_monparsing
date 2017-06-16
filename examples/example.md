@@ -1,21 +1,21 @@
-# Заголовок первого уровня
+# First lvl header
 
-Параграфы отделяются пустой строкой
+Paragraphs separates by empty line
 
-Второй параграф. *Наклонный,* **Полужирный,** и `Моножиринный.`
+Second paragraph. *Italic,* **Bold,** and `Monospace.`
 
-Неупорядоченный список:
+    Unordered list:
 
-* Пункт
-* Другой
-* Ещё один
+* Item
+* Second item
+* Third item
 
-> Блочные цитаты
-> записываются так.
+> Block quotes
+> writes.
 >
-> Могут содержать,
-> несколько параграфов.
+> Might contains,
+> several paragraphs.
 
-## Возможны блочные вставки LaTeX:
+## You may input latex blocks:
 
 $$e^{i \pi} + 1 = 0$$

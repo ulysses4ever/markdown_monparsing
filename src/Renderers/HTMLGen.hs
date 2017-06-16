@@ -1,6 +1,6 @@
 module HTMLGen where
 
--- import Parsers
+import ParserCombinators
 import MDParse
 
 import System.Directory -- for demonstration

@@ -13,12 +13,13 @@ data OutputFormat = HTML
 
 errorLogFile :: String
 errorLogFile = "error.log"
-outname = "ex.html"
+-- outname = "ex.html"
 main = do
-  -- [fname, "-o", outname] <- getArgs
-  raw <- readFile "example.md"
+  [fname, "-o", outname] <- getArgs
+  raw <- readFile fname
   -- putStrLn $ "\nGenerated html, will be written to " ++ outname ++ ": "
   let tree = parse doc raw
+  print raw
   print tree
   -- putStrLn $ "Parsed markdown: " ++ show(tree)
   -- let html = generateHTML outname tree

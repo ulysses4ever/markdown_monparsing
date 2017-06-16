@@ -1,7 +1,7 @@
 module MDParse where
 
 import Control.Monad
-
+import Data.Char
 import ParserCombinators
 import Control.Applicative ((<|>), some)
 
@@ -96,9 +96,12 @@ monospace = do
 -- Ломается, если, например, внутри plain есть *
 line :: Parser Line
 line = emptyLine +++ nonEmptyLine
-
+--
 emptyLine :: Parser Line
-emptyLine = many (sat wspaceOrTab) >> char '\n' >> return Empty
+emptyLine = do
+    many (sat wspaceOrTab)
+    x <- char '\n'
+    return $ Empty
 
 -- TODO: Получилось как-то сложно, подумать, как бы попроще
 nonEmptyLine :: Parser Line
@@ -162,7 +165,7 @@ blockMath = (bracket (string "$$") (some (sat (/= '$'))) (string "$$")) >>=
 -- |Парсит документ и возвращает список блоков
 doc :: Parser Document
 doc = do
-  ls <- many block
+  ls <- first $ many1_offside block
   --a <- header
   --b <- blank
   --c <- paragraph
