@@ -1,17 +1,16 @@
 module MDParse where
 
 import Control.Monad
-import Control.Applicative
-import qualified Data.Monoid.Textual as TM
 
-import Parsers
-import Helpers
+import ParserCombinators
+import Control.Applicative ((<|>), some)
 
 -----------------------------------------------------------------
 ---------------------------Ограничения---------------------------
 -----------------------------------------------------------------
--- Всех не перечесть, парсим пока только заголовки и параграфы простого текста, 
--- а также списки; вложенные конструкции не допускаются 
+-- Всех не перечесть, парсим пока только заголовки и параграфы простого текста,
+-- а также списки; вложенные конструкции не допускаются
+
 
 -------------------Data Types-------------------
 
@@ -29,63 +28,62 @@ data Block = Blank
 data Line = Empty | NonEmpty [Inline]
   deriving (Show,Eq)
 
--- |Represent inline entity, just a string for this moment  
--- Что делать с пунктуацией и пробелами? 
+-- |Represent inline entity, just a string for this moment
+-- Что делать с пунктуацией и пробелами?
 data Inline = Plain String
             | Bold String
             | Italic String
             | Monospace String
-  deriving (Show,Eq) 
+  deriving (Show,Eq)
 
 -----------------------------------------------------------------
 -------------------Parsers for Inline elements-------------------
 -----------------------------------------------------------------
-
 -------------------Helper Parsers-----------------
-punctuation :: TM.TextualMonoid t => Parser t Char
-punctuation = foldl1 (<|>) (map char marks) 
+punctuation :: Parser Char
+punctuation = foldl1 (<|>) (map char marks)
   where marks = ".,:;!?"
 
-alphanumsWithPunctuation :: TM.TextualMonoid t => Parser t String
+alphanumsWithPunctuation :: Parser String
 alphanumsWithPunctuation = some (alphanum <|> punctuation)
 
 -- |Sequence of alphanums with punctuations and spaces
-sentence :: TM.TextualMonoid t => Parser t String
+sentence :: Parser String
 sentence =
   some (do
-    w <- alphanumsWithPunctuation 
-    s <- (many (char ' ')) 
+    w <- alphanumsWithPunctuation
+    s <- (many (char ' '))
     return $ w ++ s
   ) >>= return . concat
 
 -------------------Parsers for single word (word may be plain, bold or italic)-------------------
 
 -- |Parse plain text
-plain :: TM.TextualMonoid t => Parser t Inline
-plain = do 
+plain :: Parser Inline
+plain = do
   txt <- sentence
   return . Plain $ txt
-  
+
 -- |Parse italic text (html <em>)
-italic :: TM.TextualMonoid t => Parser t Inline
-italic = do  
+italic :: Parser Inline
+italic = do
   txt <- bracket (char '*') sentence (char '*') <|>
          bracket (char '_') sentence (char '_')
   p   <- many punctuation
-  return . Italic $ txt ++ p  
+  return . Italic $ txt ++ p
 
--- |Parse bold text (html <strong>)  
-bold :: TM.TextualMonoid t => Parser t Inline
+-- |Parse bold text (html <strong>)
+bold :: Parser Inline
 bold = do
-  txt <- bracket asterisks sentence asterisks <|> 
+  txt <- bracket asterisks sentence asterisks <|>
        bracket underlines sentence underlines
   p   <- many punctuation
-  return . Bold $ txt ++ p  
+  return . Bold $ txt ++ p
   where
     asterisks = char '*' >> char '*'
-    underlines = char '_' >> char '_'  
+    underlines = char '_' >> char '_'
 
-monospace :: TM.TextualMonoid t => Parser t Inline
+monospace :: Parser Inline
 monospace = do
   txt <- bracket (char '`') sentence (char '`')
   p   <- many punctuation
@@ -95,18 +93,18 @@ monospace = do
 -----------------------------------------------------------------
 
 -- |Парсит слова (plain, bold, italic), разделённые одним пробелом
--- Ломается, если, например, внутри plain есть * 
-line :: TM.TextualMonoid t => Parser t Line
-line = emptyLine `mplus` nonEmptyLine
+-- Ломается, если, например, внутри plain есть *
+line :: Parser Line
+line = emptyLine +++ nonEmptyLine
 
-emptyLine :: TM.TextualMonoid t => Parser t Line
+emptyLine :: Parser Line
 emptyLine = many (sat wspaceOrTab) >> char '\n' >> return Empty
 
 -- TODO: Получилось как-то сложно, подумать, как бы попроще
-nonEmptyLine :: TM.TextualMonoid t => Parser t Line
+nonEmptyLine :: Parser Line
 nonEmptyLine = do
   many (sat wspaceOrTab)
-  l <- sepby1 (bold <|> italic <|> plain <|> monospace) (many (char ' '))
+  l <- sepby (bold <|> italic <|> plain <|> monospace) (many (char ' '))
   many (sat wspaceOrTab)
   char '\n'
   return . NonEmpty $ l
@@ -117,60 +115,60 @@ nonEmptyLine = do
 
 -- |Parse header
 -- поддерживаются только заголовки в стиле #
-header :: TM.TextualMonoid t => Parser t Block 
+header :: Parser Block
 header = do
-  hashes <- token (some (char '#')) 
+  hashes <- token (some (char '#'))
   text <- nonEmptyLine
   return $ Header (length hashes,text)
 
 -- |Parse paragraph
-paragraph :: TM.TextualMonoid t => Parser t Block
+paragraph :: Parser Block
 paragraph = do
   --l <- bracket emptyLine nonEmptyLine emptyLine
   l <- some nonEmptyLine
   return . Paragraph $ l
 
 -- |Parse unordered list
-unorderdList :: TM.TextualMonoid t => Parser t Block
+unorderdList :: Parser Block
 unorderdList = do
   items <- some (token bullet >> line)
-  return . UnorderedList $ items 
+  return . UnorderedList $ items
   where
-    bullet :: TM.TextualMonoid t => Parser t Char
+    bullet :: Parser Char
     bullet = char '*' <|> char '+' <|> char '-' >>= return
 
--- TODO: Эта функция делает почти тоже самое, что и emptyLine, 
--- TODO непонятно, как совместить их в одну, или, по крайней мере, 
+-- TODO: Эта функция делает почти тоже самое, что и emptyLine,
+-- TODO непонятно, как совместить их в одну, или, по крайней мере,
 -- TODO избежать дублирования кода
-blank :: TM.TextualMonoid t => Parser t Block
+blank :: Parser Block
 blank = many (sat wspaceOrTab) >> char '\n' >> return Blank
 
 -- |Parse blockquote
-blockquote :: TM.TextualMonoid t => Parser t Block
+blockquote :: Parser Block
 blockquote = do
   lines <- some (token (char '>') >> line)
-  return . BlockQuote $ lines  
+  return . BlockQuote $ lines
 
 -- |Черновик для латех-блоков
-blockMath :: TM.TextualMonoid t => Parser t Block
-blockMath = (bracket (string "$$") (some (sat (/= '$'))) (string "$$")) >>= 
-  return . Paragraph . (: []) . NonEmpty . (: []) . Plain . 
-    (\x -> "$$" ++ x ++ "$$") 
+blockMath :: Parser Block
+blockMath = (bracket (string "$$") (some (sat (/= '$'))) (string "$$")) >>=
+  return . Paragraph . (: []) . NonEmpty . (: []) . Plain .
+    (\x -> "$$" ++ x ++ "$$")
 
 -----------------------------------------------------------------
 -------------------Parsers for whole Document--------------------
 -----------------------------------------------------------------
 
 -- |Парсит документ и возвращает список блоков
-doc :: TM.TextualMonoid t => Parser t Document
+doc :: Parser Document
 doc = do
   ls <- many block
   --a <- header
   --b <- blank
   --c <- paragraph
   return $ ls
-  --return [a,b,c] 
-  where 
-    block = 
-      blank <|> header <|> paragraph <|> 
+  --return [a,b,c]
+  where
+    block =
+      blank <|> header <|> paragraph <|>
       unorderdList <|> blockquote <|> blockMath
